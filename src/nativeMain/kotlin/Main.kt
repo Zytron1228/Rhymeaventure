@@ -3,40 +3,49 @@ import kotlin.system.exitProcess
 import kotlinx.cinterop.cValue
 import platform.posix.nanosleep
 import platform.posix.timespec
+import platform.windows.boolean
 
 var path = ""
+var typeSpeed = 4 //0 turtle, 1 very slow, 2 slow, 3 normal--, 4 normal, 5 normal++, 6 fast, 7 very fast, 8 superspeed
+var doTypeEffect = false
+var doPauses = false
 
-fun wait(time: Int) {// time = milliseconds to wait. 1000 millisec = 1 sec.
-    var tsec = 0L
-    var tmili = time
-    if(time >= 1000) {
-        do {
-            tmili -= 1000
-            tsec ++
-        } while (tmili >= 1000)
-    }
-    val t = cValue<timespec> {
-        tv_sec = tsec
-        tv_nsec = tmili*1000000
-    }
-    nanosleep(t, null)
-}
-fun type(msg: String, pauseChar: String? = "║", pauseTime: Int = 500, intrvl: Int = 40) {
-    msg.toCharArray().forEach { c: Char ->
-        if(pauseChar != null && c.toString() == pauseChar) {
-            wait(pauseTime)
-        } else print(c)
-        wait(intrvl)
+fun wait(time: Int, ignoresDoPauses: Boolean = doPauses) {// time = milliseconds to wait. 1000 millisec = 1 sec. || if ignoresDoPauses is set to FALSE when called and doPauses is TRUE, it will NOT do the pause. ignoreDoPauses does not really ignore the setting, it overrides whether to run the code or not, or in other words, it just decides to do the pause if ignoreDoPauses is true, and nothing if false, meaning since its default value is the value of doPauses, setting this to true will make it do the pause whether the value of doPause is true or false, and setting to true will not do the pause whether doPauses is true or false. Basically chaning this parameter means ignoring doPauses and overriding to what you tell it. But why would you set to always false? That would be the equivalent of commenting out the wait() function call.
+    if(ignoresDoPauses) {
+        var tsec = 0L
+        var tmili = time
+        if(time >= 1000) {
+            do {
+                tmili -= 1000
+                tsec++
+            } while (tmili >= 1000)
+        }
+        val t = cValue<timespec> {
+            tv_sec = tsec
+            tv_nsec = tmili * 1000000
+        }
+        nanosleep(t, null)
     }
 }
-fun typeln(msg: String, pauseChar: String? = "║", pauseTime: Int = 400, intrvl: Int = 40, pauseAfter: Int = 125) {
-    type(msg, pauseChar, pauseTime, intrvl)
+fun type(msg: String, pauseChar: String? = "║", pauseTime: Int = 500, intrvl: Int = 40, overrideDoTypeEffectSetting: Boolean = !doTypeEffect) {
+    if(overrideDoTypeEffectSetting) print(pauseChar?.let { msg.replace(it, "") })
+    else {
+        msg.toCharArray().forEach { c: Char ->
+            if(pauseChar != null && c.toString() == pauseChar) {
+                wait(pauseTime)
+            } else print(c)
+            wait(intrvl, true)
+        }
+    }
+}
+fun typeln(msg: String, pauseChar: String? = "║", pauseTime: Int = 400, intrvl: Int = 40, pauseAfter: Int = 125, overrideDoTypeEffectSetting: Boolean = !doTypeEffect, doPauseAfter: Boolean = doPauses) {
+    type(msg, pauseChar, pauseTime, intrvl, overrideDoTypeEffectSetting)
     println()
-    if(pauseAfter > 0) wait(pauseAfter)
+    if(pauseAfter > 0 && doPauseAfter) wait(pauseAfter)
 }
 
 enum class Types {
-    Story, Input, Finish, Death, Menu, TextOnly
+    Story, Input, Finish, Death, Menu, TextOnly, Other
 }
 
 class Event(/*path: String, */story: String, options: Array<String>, type: Enum<Types> = Types.Story, performsAction: Boolean = false, action: () -> Unit = {}, actionTime: Int = 1) {
@@ -220,7 +229,28 @@ val events = mapOf<String, Event>(
             }
         )
     ),
+    
+    //-----------------------------STORY 2------------------------------------
+
     Pair("2",
+        Event(
+            story = "║E║║\n(the end)║║║║║",
+            options = arrayOf(
+                "Ok",
+                "Ok║║║║║║║║",
+                "Chad."
+            ),
+            performsAction = true,
+            action = {
+                path = "chad"
+            },
+            actionTime = 1
+        )
+    ),
+    
+    
+    
+    Pair("chad",
         Event(
             story = "║E║║\n(the end)║║║║║",
             options = arrayOf(
@@ -230,7 +260,7 @@ val events = mapOf<String, Event>(
             )
         )
     ),
-    Pair("23",
+    Pair("chad3",
         Event(
             story = "Chad.",
             options = arrayOf(
@@ -239,7 +269,7 @@ val events = mapOf<String, Event>(
             )
         )
     ),
-    Pair("231",
+    Pair("chad31",
         Event(
             story = "Ok.",
             options = arrayOf(
@@ -248,12 +278,12 @@ val events = mapOf<String, Event>(
             ),
             performsAction = true,
             action = {
-                path = "231"
+                path = "chad31"
             },
             actionTime = 7
         )
     ),
-    Pair("232",
+    Pair("chad32",
         Event(
             story = when ((1..5).random()) {
                 in 1..4 -> "Chad."
@@ -267,20 +297,20 @@ val events = mapOf<String, Event>(
                 when ((1..9).random()) {
                     in 1..8 -> "Chad."
                     else -> "Giga Chad."
-                }
+                } 
             ),
             performsAction = true,
             action = {
                 path =
                     when ((1..20).random()) {
-                        in 1..19 -> "232"
-                        else -> "232chad"
+                        in 1..19 -> "chad32"
+                        else -> "chad32chad"
                     }
             },
             actionTime = 7
         )
     ),
-    Pair("232chad",
+    Pair("chad32chad",
         Event(
             story = "You earned the Giga Chad ending. Such Chad.\nPress 1 to restart the game.",
             options = arrayOf(
@@ -290,8 +320,8 @@ val events = mapOf<String, Event>(
             action = {
                 path = ""
             },
-            actionTime = 7
-        )
+            actionTime = 7 
+        ) 
     ),
     Pair("3",
         Event(
@@ -300,7 +330,7 @@ val events = mapOf<String, Event>(
                     "Never gonna run║ around║ and║ desert you║║\n" +
                     "Never gonna make you cry║║\n" +
                     "Never gonna say║ goodbye║║\n" +
-                    "Never gonna tell a lie║║ and hurt you║",
+                    "Never gonna tell a lie║ and hurt you║",
             options = arrayOf(
                 "Give him up",
                 "Let him down",
@@ -526,27 +556,27 @@ val event: Event?
 
 fun getDoActnFromPath(): Boolean {
 
-    return events.values.find { e: Event -> return@find e == event }?.performsAct
+    return event/*s.values.find { e: Event -> return@find e == event }*/?.performsAct
         ?: false
 
 }
 fun getActnFromPath(): () -> Unit {
 
-    return events.values.find { e: Event -> return@find e == event }?.actn
-        ?: {}
+    return /*events.values.find { e: Event -> return@find e == event }*/event?.actn
+        ?: {println("The fallowing message is not part of your story: I dont know how you triggered this error message, but the some of the code for this section, along with the rest of this section's data, is missing, or some other error occurred. [end of message]")}
 
 }
 
 fun getActTmFromPath(): Int {
 
-    return events.values.find { e: Event -> return@find e == event }?.actnTm
+    return event/*s.values.find { e: Event -> return@find e == event }*/?.actnTm
         ?: 1
 }
 
 fun getStoryFromPath(): String {
 
-    return events.values.find { e: Event -> return@find e == event }?.stry
-        ?: "Oh my, ║the dialogue for this part of the story seems to be missing or has not been written yet. You can restart the game if you'd like to. Actually those options dont work yet either... Just don't cry."
+    return /*events.values.find { e: Event -> return@find e == event }?.stry*/ event?.stry
+        ?: "Error 404.04: 'Not Found' Page Was Not Found \nYou likely already saw a similar message above here, and I dont know how you triggered this error message, but the story dialogue, along with the rest of this section's data, is missing, or some other error occurred. Under normal circumstances, when the data for a section cannot be found when requested(whether it is intentional as part of the story or not), it will redirect you to a specific section informing you this has happened, however something went wrong and triggered this failsafe of a failsafe. If you would like to know more about this error, read the fallowing:\n Most likely, neither the requested section, nor the \"Not Found\" section could be found, or the data for this section's dialogue is for some reason null(doesn't exist) while the section itself is not null. To my(me as in the programmer writing this) knowledge, this technically isn't actually a real error, and the error code \"404.04\" doesn't exist, but consider it an error anyways, because something did go wrong, and this failsafe has never been triggered while testing before. Sorry for such a long message, I do not know of a way to make this message appear instantly(unless you turned on the setting that does that to all text), for reasons that would take too long to explain here. "
 
 }
 
@@ -556,7 +586,7 @@ fun getEventFromPath(): Event {
 
 }
 
-fun story(stry: Event, clear: Boolean = true) {
+fun storyEvent(stry: Event, clear: Boolean = true) {
     var doesAction = stry.performsAct
     var action = stry.actn
     var actionTime = stry.actnTm
@@ -593,8 +623,17 @@ fun story(stry: Event, clear: Boolean = true) {
                     ""
                 } else "$path${input.toInt()}"
                 if(doesAction && actionTime == 7) action()
-                wait(711)
-                story(getEventFromPath())
+                wait(311, true)
+                when(stry.typ) {
+                    Types.Story -> storyEvent(getEventFromPath())
+//                    Types.Input -> inputEvent(getEventFromPath())
+//                    Types.TextOnly -> textEvent(getEventFromPath())
+//                    Types.Finish -> finishEvent(getEventFromPath())
+//                    Types.Death -> deathEvent(getEventFromPath())
+//                    Types.Menu -> menuEvent(getEventFromPath())
+//                    Types.Other -> otherEvent(getEventFromPath())
+                    else -> storyEvent(getEventFromPath())
+                }
             }
             
             else -> {
@@ -608,6 +647,81 @@ fun story(stry: Event, clear: Boolean = true) {
             }
 
         }
+        } catch (e: NumberFormatException) {
+            if(doesAction && actionTime == 8) action()
+            println("Please input one of the given answer choices(e.g. \"1\" \"2\" or \"3\").")
+            wait(400)
+            typeln("\nWhat will you do?║\n \n")
+            typeln("Type the number for your selected answer and hit enter.\n", intrvl = 20, pauseAfter = 200)
+            type("\n\nYour Response: ")
+            if(doesAction && actionTime == 9) action()
+        } catch (e: Throwable) {
+            if(doesAction && actionTime == 8) action()
+            println("Please input one of the given answer choices(e.g. \"1\" \"2\" or \"3\" with no other characters). You somehow triggered an unknown error with your response. \n(the error message is: ${e.message} and the cause is ${e.cause.toString()}")
+            wait(400)
+            typeln("\nWhat will you do?║\n \n")
+            typeln("Type the number for your selected answer and hit enter.\n", intrvl = 20, pauseAfter = 200)
+            type("\n\nYour Response: ")
+            if(doesAction && actionTime == 9) action()
+        }
+        if(doesAction && actionTime == 10) action()
+    } while (w4i)
+}
+
+
+
+fun inputEvent(stry: Event, clear: Boolean = true) {
+    var doesAction = stry.performsAct
+    var action = stry.actn
+    var actionTime = stry.actnTm
+    var options = stry.optns
+    var story = stry.stry
+    if(doesAction && actionTime == 0) action()
+    if(clear) system("cls")
+    else println("\n\n\n\n\n\n\n\n\n\n\n\n")
+    if(doesAction && actionTime == 1) action()
+    typeln("$story\n \n \n", intrvl = 21, pauseAfter = 1100)
+    if(doesAction && actionTime == 2) action()
+    typeln("What will you do? \n║")
+    if(doesAction && actionTime == 3) action()
+    wait(150)
+    var optNum = 0
+    for (option in options) {
+        optNum++
+        typeln("$optNum ) ║ $option", pauseTime = 150, pauseAfter = 325)
+    }
+    if(doesAction && actionTime == 4) action()
+    wait(150)
+    typeln("\nType the number for your selected response and hit enter.\n", intrvl = 25, pauseAfter = 200)
+    if(doesAction && actionTime == 5) action()
+    type("\nYour Response: ")
+    var w4i = true
+    do {
+        val input = readln().removePrefix(" ").removeSuffix(" ")
+        try {
+            when (input.toInt()) {
+                in (1..optNum) -> {
+                    w4i = false
+                    if(doesAction && actionTime == 6) action()
+                    path = if(event == events.getValue("NotFound")) {
+                        ""
+                    } else "$path${input.toInt()}"
+                    if(doesAction && actionTime == 7) action()
+                    wait(711)
+                    storyEvent(getEventFromPath())
+                }
+
+                else -> {
+                    if(doesAction && actionTime == 8) action()
+                    println("Please input one of the given answer choices(e.g. \"1\" \"2\" or \"3\").")
+                    wait(400)
+                    typeln("\nWhat will you do?║\n \n")
+                    typeln("Type the number for your selected answer and hit enter.\n", intrvl = 20, pauseAfter = 200)
+                    type("\n\nYour Response: ")
+                    if(doesAction && actionTime == 9) action()
+                }
+
+            }
         } catch (e: NumberFormatException) {
             if(doesAction && actionTime == 8) action()
             println("Please input one of the given answer choices(e.g. \"1\" \"2\" or \"3\").")
@@ -639,13 +753,90 @@ fun main() {
     var playing = false
 
     typeln("Hello, Kotlin/Native!")
-    wait(900)
+    wait(750)
     typeln("Type whatever you want. Or type \"start\" to start the game. \n(type \"help\" for a full list of additional commands)\n", intrvl = 25)
     do {
         val inpt = readln()
         when (inpt.lowercase()) {
             "clear" -> {
                 system("cls")
+            }
+            "settings" -> {
+                print("\nSettings:\n\n\n" +
+                        "Type Speed Setting(WIP):")
+                type("$typeSpeed (${when(typeSpeed) {  //note to self: add descriptions  
+                            0 -> "sloth(painfully slow)"
+                            1 -> "very slow"
+                            2 -> "slow"
+                            3 -> "slightly slower than normal"
+                            4 -> "normal"
+                            5 -> "slightly faster than normal"
+                            6 -> "fast"
+                            7 -> "very fast"
+                            8 -> "superspeed(not recommended; does not affect mid sentence pauses , nor do any other speed setting)"
+                            9 -> "GODSPEED(why would you need this) (not recommended; does not affect mid sentence pauses, nor do any other speed setting)"
+                            else -> {
+                                "Unknown. Set at " + typeSpeed.toString() + "where 0 is sloth, 4 is Normal, and 10 is GODSPEED. if the set number is  not between 0 and 9 then the typing effect will not work."
+                            }
+                        }
+                        })\n\n")
+                println("Typing Effect: ${if(doTypeEffect) "on." else "off. (When off, it is recommended that you also have 'do pauses' off."}\n(note: currently will not change anything.)\n\n" +
+                "Do Pauses: ${if(doPauses) "on" else "off"}\n\n\n"+
+                "Types which setting you would like to change: \"Type Speed\" \"Type Effect\" \"Pauses\" or type anything else(or nothing + enter) to cancel.\n")
+                when(readln().lowercase()) {
+                    "type speed" -> {println("this setting currently cannot be changed.")}
+                    "type effect" -> {
+                        typeln("Type either \"1\" or \"on\" to enable, type the either \"0\", \"2\" or \"off\" to disable, and type \"toggle\" to toggle to the opposite of what it is now. It is recommended that pauses are also disabled when this is disabled, or on very high Type Speed settings.", intrvl = 10, pauseAfter = 5)
+                        when(readln().lowercase()) {
+                            "1" -> {
+                                doTypeEffect = true
+                                typeln("Typing affect on.")
+                            }
+                            "on" -> {
+                                doTypeEffect = true
+                                typeln("Typing affect on.")
+                            }
+                            "2" -> {
+                                doTypeEffect = false
+                                typeln("Typing affect off.")
+                            }
+                            "off" -> {
+                                doTypeEffect = false
+                                typeln("Typing affect off.")
+                            }
+                            "toggle" -> {
+                                doTypeEffect = !doTypeEffect
+                                typeln("Typing affect toggled ${if(doTypeEffect) "on" else "off"}. ")
+                            }
+                        }
+                    }
+                    "pauses" -> {
+                        println("Type either \"1\" or \"on\" to enable, type the either \"0\", \"2\" or \"off\" to disable, and type \"toggle\" to toggle to the opposite of what it is now. It is recommended that this is disabled when the Type Effect is disabled, or on very high Type Speed settings.")
+                        when(readln().lowercase()) {
+                            "1" -> {
+                                doPauses = true
+                                typeln("Pauses on.")
+                            }
+                            "on" -> {
+                                doPauses = true
+                                typeln("Pauses on.")
+                            }
+                            "2" -> {
+                                doPauses = false
+                                typeln("Pauses off.")
+                            }
+                            "off" -> {
+                                doPauses = false
+                                typeln("Pauses off.")
+                            }
+                            "toggle" -> {
+                                doPauses = !doPauses
+                                typeln("Pauses toggled ${if(doPauses) "on" else "off"}. ")
+                            }
+                        }
+                    }
+                    else -> {typeln("No settings changed. If you didn't mean to cancel, type \"settings\" again and make sure you type the setting name exactly.\n")}
+                }
             }
             "end" -> {
                 typeln("\nAre you sure you want to exit? [Y/N]", intrvl = 30)
@@ -659,13 +850,14 @@ fun main() {
                 typeln("starting game.")
                 wait(250)
                 playing = true
-                story(getEventFromPath())
+                storyEvent(getEventFromPath())
 //                story(story = "Story yes. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris augue eros, congue eu molestie ac, dictum non nulla. Phasellus mi arcu, lacinia eu sodales et, hendrerit non justo. Ut quis varius nunc. Fusce finibus efficitur massa, sit amet tincidunt odio tempor et. Fusce faucibus pharetra augue a pretium. In suscipit sapien non tincidunt vestibulum. Nam maximus, justo ac venenatis elementum, dolor magna fermentum dui, sit amet tincidunt augue leo in nibh. Mauris quam urna, volutpat vitae mattis sit amet, scelerisque a ipsum. Sed sit amet mattis odio. Donec placerat eu mauris in egestas. Mauris a euismod sapien. Non iens ut det te. ")
             }
             "help" -> println("\nclear : Clears this console.\n\n" +
+                    "settings : Displays game settings and allows you to change them.\n\n" +
                     "start : Starts the game.\n\n" +
                     "end : Asks to confirm exiting the application. Closes the application if user responds with \"Y\" and cancels if \"N\" or if the response is neither. (i.e. user typed \"Y \"(with a space) or \"Yes\" or \"M\" etc.)\n\n" +
-                    "execute : Executes the command typed after \"execute \" if it is valid.\nType \"execute help\" for help with these commands.\n\n" +
+                    "execute : Executes the command typed after \"execute \" if it is valid.\nType \"execute help\" for help with these commands. These commands are for whatever command line/terminal you are using, and can control you computer(how you tell it to). For example, you can perform actions from copying files on demand to changing colors in this window to shutting down your PC in 10 years.\n\n" +
                     "help : This.\n")
             else -> {
                 println()
